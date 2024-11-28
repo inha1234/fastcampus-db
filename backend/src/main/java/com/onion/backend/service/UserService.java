@@ -22,4 +22,8 @@ public class UserService {
         user.setEmail(email);
         return userRepository.save(user);
     }
+
+    public void deleteUser(Long userId){
+        userRepository.deleteById(userId);
+    }
 }
