@@ -27,6 +27,7 @@ public class User {
     private String password;
 
     @Column(nullable = false)
+    @JsonIgnore
     private String email;
 
     private LocalDateTime lastLogin;
