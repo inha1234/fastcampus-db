@@ -1,5 +1,6 @@
 package com.onion.backend.service;
 
+import com.onion.backend.dto.EditArticleDto;
 import com.onion.backend.dto.WriteArticleDto;
 import com.onion.backend.entity.Article;
 import com.onion.backend.entity.Board;
@@ -30,11 +31,11 @@ public class ArticleService {
         this.userRepository = userRepository;
     }
 
-    public Article writeArticle(WriteArticleDto dto) {
+    public Article writeArticle(Long boardId, WriteArticleDto dto) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetails UserDetails = (UserDetails) authentication.getPrincipal();
         Optional<User> author = userRepository.findByUsername(UserDetails.getUsername());
-        Optional<Board> board = boardRepository.findById(dto.getBoardId());
+        Optional<Board> board = boardRepository.findById(boardId);
 
         if (author.isEmpty()){
             throw new ResourceNotFoundException("author not found");
@@ -63,5 +64,34 @@ public class ArticleService {
 
     public List<Article> getNewArticle(Long boardId, Long articleId) {
         return articleRepository.findTop10ByBoardIdAndArticleIdGreaterThanOrderByCreatedDateDesc(boardId, articleId);
+    }
+
+    public Article editArticle(Long boardId, Long articleId, EditArticleDto dto) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserDetails UserDetails = (UserDetails) authentication.getPrincipal();
+        Optional<User> author = userRepository.findByUsername(UserDetails.getUsername());
+        Optional<Board> board = boardRepository.findById(boardId);
+
+        if (author.isEmpty()){
+            throw new ResourceNotFoundException("author not found");
+        }
+        if(board.isEmpty()){
+            throw new ResourceNotFoundException("board not found");
+        }
+
+        Optional<Article> article = articleRepository.findById(articleId);
+        if(article.isEmpty()){
+            throw new ResourceNotFoundException("article not found");
+        }
+        if(dto.getTitle() != null){
+            article.get().setTitle(dto.getTitle().get());
+        }
+        if(dto.getContent() != null){
+            article.get().setContent(dto.getContent().get());
+        }
+
+        articleRepository.save(article.get());
+
+        return article.get();
     }
 }
