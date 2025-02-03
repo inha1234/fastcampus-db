@@ -5,6 +5,7 @@ import com.onion.backend.dto.WriteArticleDto;
 import com.onion.backend.entity.Article;
 import com.onion.backend.entity.Board;
 import com.onion.backend.entity.User;
+import com.onion.backend.exception.RateLimitException;
 import com.onion.backend.exception.ResourceNotFoundException;
 import com.onion.backend.repository.ArticleRepository;
 import com.onion.backend.repository.BoardRepository;
@@ -15,6 +16,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,6 +39,10 @@ public class ArticleService {
     public Article writeArticle(Long boardId, WriteArticleDto dto) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetails UserDetails = (UserDetails) authentication.getPrincipal();
+        if(!this.isCanWriteArticle()){
+            throw new RateLimitException("article not written by rate limit");
+        }
+
         Optional<User> author = userRepository.findByUsername(UserDetails.getUsername());
         Optional<Board> board = boardRepository.findById(boardId);
 
@@ -68,8 +77,8 @@ public class ArticleService {
 
     public Article editArticle(Long boardId, Long articleId, EditArticleDto dto) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserDetails UserDetails = (UserDetails) authentication.getPrincipal();
-        Optional<User> author = userRepository.findByUsername(UserDetails.getUsername());
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        Optional<User> author = userRepository.findByUsername(userDetails.getUsername());
         Optional<Board> board = boardRepository.findById(boardId);
 
         if (author.isEmpty()){
@@ -83,6 +92,11 @@ public class ArticleService {
         if(article.isEmpty()){
             throw new ResourceNotFoundException("article not found");
         }
+
+        if(!this.isCanEditArticle()){
+            throw new RateLimitException("article not edited by rate limit");
+        }
+
         if(dto.getTitle() != null){
             article.get().setTitle(dto.getTitle().get());
         }
@@ -93,5 +107,33 @@ public class ArticleService {
         articleRepository.save(article.get());
 
         return article.get();
+    }
+
+    private boolean isCanWriteArticle() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+
+        Article article = articleRepository.findLatestArticleByAuthorUsernameOrderByCreatedDate(userDetails.getUsername());
+
+        return this.isDifferenceMoreThanFiveMinutes(article.getCreatedDate());
+    }
+
+    private boolean isCanEditArticle(){
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+
+        Article article = articleRepository.findLatestArticleByAuthorUsernameOrderByUpdatedDate(userDetails.getUsername());
+
+        return this.isDifferenceMoreThanFiveMinutes(article.getUpdatedDate());
+    }
+
+    public boolean isDifferenceMoreThanFiveMinutes(LocalDateTime localDateTime){
+        LocalDateTime dateAsLocalDate = new Date().toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime();
+
+        Duration duration = Duration.between(localDateTime, dateAsLocalDate);
+
+        return Math.abs(duration.toMinutes()) > 5;
     }
 }
