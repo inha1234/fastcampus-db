@@ -24,7 +24,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ForbiddenException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
-    public String handleForbiddenException(RateLimitException ex){
+    public String handleForbiddenException(ForbiddenException ex){
         return ex.getMessage();
     }
 }
