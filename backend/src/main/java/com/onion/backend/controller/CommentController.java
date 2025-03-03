@@ -23,10 +23,18 @@ public class CommentController {
         this.commentService = commentService;
     }
 
-    @PostMapping({"/{boardId}/articles/{articleId}"})
+    @PostMapping({"/{boardId}/articles/{articleId}/comments"})
     public ResponseEntity<Comment> writeComment(@PathVariable Long boardId,
                                                 @PathVariable Long articleId,
                                                 @RequestBody WriteCommentDto dto){
         return ResponseEntity.ok(commentService.writeComment(boardId, articleId, dto));
+    }
+
+    @PutMapping({"/{boardId}/articles/{articleId}/comments/{commentId}"})
+    public ResponseEntity<Comment> writeComment(@PathVariable Long boardId,
+                                                @PathVariable Long articleId,
+                                                @PathVariable Long commentId,
+                                                @RequestBody WriteCommentDto editDto){
+        return ResponseEntity.ok(commentService.editComment(boardId, articleId, commentId, editDto));
     }
 }
