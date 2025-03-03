@@ -79,7 +79,7 @@ public class CommentService {
     }
 
     @Transactional
-    public Comment editComment(Long boardId, Long articleId, Long commentId,WriteCommentDto dto) {
+    public Comment editComment(Long boardId, Long articleId, Long commentId, WriteCommentDto dto) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetails UserDetails = (UserDetails) authentication.getPrincipal();
         if(!this.isCanEditComment()){
@@ -116,6 +116,43 @@ public class CommentService {
         commentRepository.save(comment.get());
 
         return comment.get();
+    }
+
+    public boolean deleteComment(Long boardId, Long articleId, Long commentId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserDetails UserDetails = (UserDetails) authentication.getPrincipal();
+        if(!this.isCanEditComment()){
+            throw new RateLimitException("comment not written by rate limit");
+        }
+
+        Optional<User> author = userRepository.findByUsername(UserDetails.getUsername());
+        Optional<Board> board = boardRepository.findById(boardId);
+        Optional<Article> article = articleRepository.findById(articleId);
+
+        if(author.isEmpty()){
+            throw new ResourceNotFoundException("author not found");
+        }
+        if(board.isEmpty()){
+            throw new ResourceNotFoundException("board not found");
+        }
+        if(article.isEmpty()){
+            throw new ResourceNotFoundException("article not found");
+        }
+        if(article.get().getIsDeleted()){
+            throw new ForbiddenException("article is deleted");
+        }
+
+        Optional<Comment> comment = commentRepository.findById(commentId);
+        if(comment.isEmpty() || comment.get().getIsDeleted()){
+            throw new ResourceNotFoundException("comment not found");
+        }
+        if(comment.get().getAuthor() != author.get()){
+            throw new ForbiddenException("comment author different");
+        }
+        comment.get().setIsDeleted(true);
+        commentRepository.save(comment.get());
+
+        return true;
     }
 
     private boolean isCanWriteComment() {
