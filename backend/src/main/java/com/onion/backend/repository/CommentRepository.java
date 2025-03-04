@@ -1,6 +1,5 @@
 package com.onion.backend.repository;
 
-import com.onion.backend.entity.Article;
 import com.onion.backend.entity.Comment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

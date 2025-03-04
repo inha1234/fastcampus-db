@@ -1,17 +1,11 @@
 package com.onion.backend.service;
 
 import com.onion.backend.dto.WriteCommentDto;
-import com.onion.backend.entity.Article;
-import com.onion.backend.entity.Board;
-import com.onion.backend.entity.Comment;
-import com.onion.backend.entity.User;
+import com.onion.backend.entity.*;
 import com.onion.backend.exception.ForbiddenException;
 import com.onion.backend.exception.RateLimitException;
 import com.onion.backend.exception.ResourceNotFoundException;
-import com.onion.backend.repository.ArticleRepository;
-import com.onion.backend.repository.BoardRepository;
-import com.onion.backend.repository.CommentRepository;
-import com.onion.backend.repository.UserRepository;
+import com.onion.backend.repository.*;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
@@ -35,13 +29,15 @@ public class CommentService {
     private final ArticleRepository articleRepository;
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
+    private final ReplyCommentRepository replyCommentRepository;
 
     @Autowired
-    public CommentService(BoardRepository boardRepository, ArticleRepository articleRepository, UserRepository userRepository, CommentRepository commentRepository) {
+    public CommentService(BoardRepository boardRepository, ArticleRepository articleRepository, UserRepository userRepository, CommentRepository commentRepository, ReplyCommentRepository replyCommentRepository) {
         this.boardRepository = boardRepository;
         this.articleRepository = articleRepository;
         this.userRepository = userRepository;
         this.commentRepository = commentRepository;
+        this.replyCommentRepository = replyCommentRepository;
     }
 
     @Transactional
@@ -153,6 +149,51 @@ public class CommentService {
         commentRepository.save(comment.get());
 
         return true;
+    }
+
+    @Transactional
+    public ReplyComment writeReplyComment(Long boardId, Long articleId, Long commentId, WriteCommentDto dto) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserDetails UserDetails = (UserDetails) authentication.getPrincipal();
+        if(!this.isCanWriteComment()){
+            throw new RateLimitException("comment not written by rate limit");
+        }
+
+        Optional<User> author = userRepository.findByUsername(UserDetails.getUsername());
+        Optional<Board> board = boardRepository.findById(boardId);
+        Optional<Article> article = articleRepository.findById(articleId);
+        Optional<Comment> comment = commentRepository.findById(commentId);
+
+        if(author.isEmpty()){
+            throw new ResourceNotFoundException("author not found");
+        }
+        if(board.isEmpty()){
+            throw new ResourceNotFoundException("board not found");
+        }
+        if(article.isEmpty()){
+            throw new ResourceNotFoundException("article not found");
+        }
+        if(comment.isEmpty()){
+            throw new ResourceNotFoundException("comment not found");
+        }
+        if(article.get().getIsDeleted()){
+            throw new ForbiddenException("article is deleted");
+        }
+
+        ReplyComment replyComment = new ReplyComment();
+        replyComment.setArticle(article.get());
+        replyComment.setAuthor(author.get());
+        replyComment.setContent(dto.getContent());
+        replyComment.setComment(comment.get());
+        replyCommentRepository.save(replyComment);
+
+//        Comment comment = new Comment();
+//        comment.setArticle(article.get());
+//        comment.setAuthor(author.get());
+//        comment.setContent(dto.getContent());
+//        commentRepository.save(comment);
+
+        return replyComment;
     }
 
     private boolean isCanWriteComment() {
