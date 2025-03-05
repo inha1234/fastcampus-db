@@ -35,6 +35,7 @@ public class ReplyComment {
     private Article article;
 
     @ManyToOne
+    @JsonIgnore
     @JoinColumn(foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     private Comment comment;
 
@@ -56,5 +57,12 @@ public class ReplyComment {
     @PreUpdate
     protected void onUpdate() {
         this.updatedDate = LocalDateTime.now();
+    }
+
+    public Long getCommentId(){
+        if(this.comment != null){
+            return this.comment.getId();
+        }
+        return null;
     }
 }

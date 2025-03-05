@@ -17,11 +17,14 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 @Service
 public class CommentService {
@@ -179,6 +182,9 @@ public class CommentService {
         if(article.get().getIsDeleted()){
             throw new ForbiddenException("article is deleted");
         }
+        if(comment.get().getArticle() != article.get()){
+            throw new ForbiddenException("comment article different");
+        }
 
         ReplyComment replyComment = new ReplyComment();
         replyComment.setArticle(article.get());
@@ -284,15 +290,28 @@ public class CommentService {
         return CompletableFuture.completedFuture(commentRepository.findByArticleId(ArticleId));
     }
 
+    @Async
+    protected CompletableFuture<List<ReplyComment>> getReplyComments(Long ArticleId){
+        return CompletableFuture.completedFuture(replyCommentRepository.findByArticleId(ArticleId));
+    }
+
     public CompletableFuture<Article> getArticleWithComment(Long boardId, Long articleId){
         CompletableFuture<Article> articleFuture = this.getArticle(boardId, articleId);
         CompletableFuture<List<Comment>> commentsFuture = this.getComments(articleId);
+        CompletableFuture<List<ReplyComment>> repliesFuture = this.getReplyComments(articleId);
 
-        return CompletableFuture.allOf(articleFuture, commentsFuture)
+        return CompletableFuture.allOf(articleFuture, commentsFuture, repliesFuture)
                 .thenApply(voidResult -> {
             try {
                 Article article = articleFuture.get();
                 List<Comment> comments = commentsFuture.get();
+                List<ReplyComment> replies = repliesFuture.get();
+                Map<Long, List<ReplyComment>> repliesMap = replies.stream()
+                        .collect(Collectors.groupingBy(ReplyComment::getCommentId));
+
+                for (Comment comment : comments) {
+                    comment.setReplyComments(repliesMap.getOrDefault(comment.getId(), new ArrayList<>()));
+                }
                 article.setComments(comments);
                 return article;
             } catch (InterruptedException | ExecutionException e) {
