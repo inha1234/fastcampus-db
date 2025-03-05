@@ -187,13 +187,48 @@ public class CommentService {
         replyComment.setComment(comment.get());
         replyCommentRepository.save(replyComment);
 
-//        Comment comment = new Comment();
-//        comment.setArticle(article.get());
-//        comment.setAuthor(author.get());
-//        comment.setContent(dto.getContent());
-//        commentRepository.save(comment);
-
         return replyComment;
+    }
+
+    @Transactional
+    public ReplyComment editReplyComment(Long boardId, Long articleId, Long replyCommentId, WriteCommentDto dto) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserDetails UserDetails = (UserDetails) authentication.getPrincipal();
+        if(!this.isCanEditComment()){
+            throw new RateLimitException("comment not written by rate limit");
+        }
+
+        Optional<User> author = userRepository.findByUsername(UserDetails.getUsername());
+        Optional<Board> board = boardRepository.findById(boardId);
+        Optional<Article> article = articleRepository.findById(articleId);
+
+        if(author.isEmpty()){
+            throw new ResourceNotFoundException("author not found");
+        }
+        if(board.isEmpty()){
+            throw new ResourceNotFoundException("board not found");
+        }
+        if(article.isEmpty()){
+            throw new ResourceNotFoundException("article not found");
+        }
+        if(article.get().getIsDeleted()){
+            throw new ForbiddenException("article is deleted");
+        }
+
+        Optional<ReplyComment> replyComment = replyCommentRepository.findById(replyCommentId);
+
+        if(replyComment.isEmpty() || replyComment.get().getIsDeleted()){
+            throw new ResourceNotFoundException("reply comment not found");
+        }
+        if(replyComment.get().getAuthor() != author.get()){
+            throw new ForbiddenException("reply comment author different");
+        }
+        if(dto.getContent() != null){
+            replyComment.get().setContent(dto.getContent());
+        }
+        replyCommentRepository.save(replyComment.get());
+
+        return replyComment.get();
     }
 
     private boolean isCanWriteComment() {
