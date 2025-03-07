@@ -237,6 +237,43 @@ public class CommentService {
         return replyComment.get();
     }
 
+    public boolean deleteReplyComment(Long boardId, Long articleId, Long replyCommentId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserDetails UserDetails = (UserDetails) authentication.getPrincipal();
+        if(!this.isCanEditComment()){
+            throw new RateLimitException("reply comment not written by rate limit");
+        }
+
+        Optional<User> author = userRepository.findByUsername(UserDetails.getUsername());
+        Optional<Board> board = boardRepository.findById(boardId);
+        Optional<Article> article = articleRepository.findById(articleId);
+
+        if(author.isEmpty()){
+            throw new ResourceNotFoundException("author not found");
+        }
+        if(board.isEmpty()){
+            throw new ResourceNotFoundException("board not found");
+        }
+        if(article.isEmpty()){
+            throw new ResourceNotFoundException("article not found");
+        }
+        if(article.get().getIsDeleted()){
+            throw new ForbiddenException("article is deleted");
+        }
+
+        Optional<ReplyComment> replyComment = replyCommentRepository.findById(replyCommentId);
+        if(replyComment.isEmpty() || replyComment.get().getIsDeleted()){
+            throw new ResourceNotFoundException("reply comment not found");
+        }
+        if(replyComment.get().getAuthor() != author.get()){
+            throw new ForbiddenException("reply comment author different");
+        }
+        replyComment.get().setIsDeleted(true);
+        replyCommentRepository.save(replyComment.get());
+
+        return true;
+    }
+
     private boolean isCanWriteComment() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();

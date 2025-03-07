@@ -47,11 +47,19 @@ public class CommentController {
         return ResponseEntity.ok(commentService.writeReplyComment(boardId, articleId, commentId, replyDto));
     }
 
-    @PutMapping("/{boardId}/articles/{articleId}/{replyCommentId}")
+    @PutMapping("/{boardId}/articles/{articleId}/replyComments/{replyCommentId}")
     public ResponseEntity<ReplyComment> editReplyComment(@PathVariable Long boardId,
                                                           @PathVariable Long articleId,
                                                           @PathVariable Long replyCommentId,
                                                           @RequestBody WriteCommentDto replyDto){
         return ResponseEntity.ok(commentService.editReplyComment(boardId, articleId, replyCommentId, replyDto));
+    }
+
+    @DeleteMapping({"/{boardId}/articles/{articleId}/replyComments/{replyCommentId}"})
+    public ResponseEntity<String> deleteReplyComment(@PathVariable Long boardId,
+                                                @PathVariable Long articleId,
+                                                @PathVariable Long replyCommentId){
+        commentService.deleteReplyComment(boardId, articleId, replyCommentId);
+        return ResponseEntity.ok("Reply comment is deleted");
     }
 }
